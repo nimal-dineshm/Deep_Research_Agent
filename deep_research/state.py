@@ -1,3 +1,4 @@
+
 """State Definitions and Pydantic Schemas for Research Scoping.
 
 This defines the state objects and structured schemas used for
@@ -120,4 +121,4 @@ class ConductResearch(BaseModel):
 
 class ResearchComplete(BaseModel):
     """Tool for indicating that the research process is complete."""
-    pass
+    pass 
