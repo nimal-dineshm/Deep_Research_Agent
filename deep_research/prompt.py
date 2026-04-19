@@ -346,7 +346,7 @@ For each section of the report, do the following:
 - Use bullet points to list out information when appropriate, but by default, write in paragraph form.
 
 REMEMBER:
-The brief and research may be in English, but you need to translate this information to the right language when writing the final answer.
+The brief and research may be in english, but you need to translate this information to the right language when writing the final answer.
 Make sure the final answer report is in the SAME language as the human messages in the message history.
 
 Format the report in clear markdown with proper structure and include source references where appropriate.
@@ -361,4 +361,4 @@ Format the report in clear markdown with proper structure and include source ref
   [2] Source Title: URL
 - Citations are extremely important. Make sure to include these, and pay a lot of attention to getting these right. Users will often use these citations to look into more information.
 </Citation Rules>
-"""
+""" 
