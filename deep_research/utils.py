@@ -157,3 +157,47 @@ def format_search_output(summarized_results: dict) -> str:
         formatted_output += "-" * 80 + "\n"
     
     return formatted_output
+
+
+from langchain_core.tools import tool, InjectedToolArg
+from typing import Annotated as Ann
+
+@tool(parse_docstring=True)
+def tavily_search(
+    query: str,
+    config: RunnableConfig,
+    max_results: Annotated[int, InjectedToolArg] = 3,
+    topic: Annotated[Literal["general", "news", "finance"], InjectedToolArg] = "general",
+) -> str:
+    """Fetch results from Tavily search API with content summarization.
+
+    Args:
+        query: A single search query to execute
+        max_results: Maximum number of results to return
+        topic: Topic to filter results by ('general', 'news', 'finance')
+
+    Returns:
+        Formatted string of search results with summaries
+    """
+    summarization_model_name = config.get("configurable", {}).get(
+        "summarization_model", _DEFAULT_SUMMARIZATION_MODEL
+    )
+
+    search_results = tavily_search_multiple(
+        [query],
+        max_results=max_results,
+        topic=topic,
+        include_raw_content=True,
+    )
+
+    unique_results = deduplicate_search_results(search_results)
+
+    summarized_results = {}
+    for url, result in unique_results.items():
+        if not result.get("raw_content"):
+            content = result["content"]
+        else:
+            content = summarize_webpage_content(result["raw_content"], summarization_model_name)
+        summarized_results[url] = {"title": result["title"], "content": content}
+
+    return format_search_output(summarized_results)
