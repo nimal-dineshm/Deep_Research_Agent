@@ -628,3 +628,50 @@ with tab_graph:
     except Exception as exc:
         st.error(f"Could not render graph: {exc}")
 
+# ─── Research Tab ─────────────────────────────────────────────────────────────
+
+with tab_research:
+    if st.session_state.awaiting_clarification:
+        st.info(
+            "The agent asked a clarifying question. "
+            "Type your answer in the chat bar at the bottom of the page.",
+            icon="💬",
+        )
+
+    for idx, msg in enumerate(st.session_state.chat_history):
+        if msg["role"] == "assistant" and msg.get("stages"):
+            for stage in msg["stages"]:
+                with st.expander(f"{stage['icon']} {stage['label']}", expanded=False):
+                    st.markdown(stage["text"])
+            with st.chat_message("assistant"):
+                with st.container(height=600, border=False):
+                    render_content(msg["content"])
+            is_report = len(msg["content"]) > 300 or "## " in msg["content"]
+            if is_report:
+                st.download_button(
+                    label="⬇️ Download Report",
+                    data=msg["content"],
+                    file_name="research_report.md",
+                    mime="text/markdown",
+                    key=f"dl_{idx}",
+                    use_container_width=False,
+                )
+        else:
+            with st.chat_message(msg["role"]):
+                render_content(msg["content"])
+
+# ─── Chat Input ───────────────────────────────────────────────────────────────
+
+input_hint = (
+    "Answer the clarifying question..."
+    if st.session_state.awaiting_clarification
+    else "What would you like me to research?"
+)
+if prompt := st.chat_input(input_hint):
+    st.session_state.lc_messages.append(HumanMessage(content=prompt))
+    st.session_state.chat_history.append({"role": "user", "content": prompt})
+    with tab_research:
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        run_research(prompt)
+    st.rerun()
