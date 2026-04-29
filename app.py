@@ -394,3 +394,131 @@ def run_research(user_input: str) -> None:
                 }
                 current_stage = ev_name
 
+        # ── Sub-stage: START (inside supervisor / researcher subgraphs) ───────
+        elif ev_type == "on_chain_start" and ev_name in SUB_STAGE_CONFIG:
+            parent = "supervisor_subgraph"
+            if parent in stage_containers:
+                info = SUB_STAGE_CONFIG[ev_name]
+                if ev_name == "llm_call":
+                    researcher_count += 1
+                    stage_containers[parent]["status"].write(
+                        f"**{info['icon']} Researcher #{researcher_count}** started"
+                    )
+                    stage_containers[parent]["text"] = ""
+                    stage_containers[parent]["text_ph"] = None
+                    stage_containers[parent]["prefix"] = (
+                        f"🔬 **Researcher #{researcher_count}:**\n\n"
+                    )
+                    stage_containers[parent]["prefix_written"] = False
+                else:
+                    stage_containers[parent]["status"].write(
+                        f"**{info['icon']} {info['label']}**"
+                    )
+
+        # ── Tool call: show search queries ────────────────────────────────────
+        elif ev_type == "on_tool_start":
+            parent = "supervisor_subgraph"
+            if parent in stage_containers:
+                tool_input = event.get("data", {}).get("input", {})
+                if isinstance(tool_input, dict):
+                    queries: List[str] = tool_input.get("queries", [])
+                    for q in queries[:3]:
+                        stage_containers[parent]["status"].write(f"🔎 `{q[:120]}`")
+
+        # ── Model streaming: accumulate text into the active stage ────────────
+        elif ev_type == "on_chat_model_stream":
+            chunk = event.get("data", {}).get("chunk")
+            if not chunk:
+                continue
+            text = _extract_text(getattr(chunk, "content", ""))
+            if not text:
+                continue
+
+            target: Optional[str] = None
+            if lg_node in STAGE_CONFIG:
+                target = lg_node
+            elif lg_node in SUB_STAGE_CONFIG:
+                target = "supervisor_subgraph"
+            elif current_stage:
+                target = current_stage
+
+            if target and target in stage_containers:
+                sc = stage_containers[target]
+                if not sc["prefix_written"]:
+                    sc["text"] = sc["prefix"]
+                    sc["accumulated_text"].append(sc["prefix"])
+                    sc["prefix_written"] = True
+                sc["text"] += text
+                sc["accumulated_text"].append(text)
+                if sc["text_ph"] is None:
+                    if target == "final_report_generation":
+                        scroll_box = sc["status"].container(height=600, border=False)
+                        sc["text_ph"] = scroll_box.empty()
+                    else:
+                        sc["text_ph"] = sc["status"].empty()
+                sc["text_ph"].markdown(sc["text"])
+
+        # ── Supervisor tool-calls: capture ConductResearch / think_tool decisions ─
+        elif ev_type == "on_chat_model_end" and lg_node == "supervisor":
+            if "supervisor_subgraph" not in stage_containers:
+                continue
+            sc = stage_containers["supervisor_subgraph"]
+            output = event.get("data", {}).get("output")
+            tool_calls = getattr(output, "tool_calls", []) if output else []
+            for tc in tool_calls:
+                name = tc.get("name", "")
+                args = tc.get("args", {})
+                if name == "ConductResearch":
+                    topic = args.get("research_topic", "")
+                    preview = topic[:400] + ("..." if len(topic) > 400 else "")
+                    entry = f"🔬 **Delegating research:** {preview}\n\n"
+                elif name == "think_tool":
+                    reflection = args.get("reflection", "")
+                    preview = reflection[:300] + ("..." if len(reflection) > 300 else "")
+                    entry = f"💭 **Planning:** {preview}\n\n"
+                elif name == "ResearchComplete":
+                    entry = "✅ **Research complete — moving to report generation**\n\n"
+                else:
+                    continue
+                sc["status"].markdown(entry)
+                sc["accumulated_text"].append(entry)
+
+        # ── Top-level stage: END ──────────────────────────────────────────────
+        elif ev_type == "on_chain_end" and ev_name in STAGE_CONFIG:
+            if ev_name not in stage_containers:
+                continue
+            output = event.get("data", {}).get("output", {})
+            info = STAGE_CONFIG[ev_name]
+            sc = stage_containers[ev_name]
+
+            if ev_name == "clarify_with_user":
+                msgs = output.get("messages", []) if isinstance(output, dict) else []
+                if msgs:
+                    content = _extract_text(getattr(msgs[-1], "content", ""))
+                    if content:
+                        display = f"{info['stream_prefix']}\n\n{content}"
+                        sc["status"].markdown(display)
+                        sc["accumulated_text"].append(display)
+
+            elif ev_name == "write_research_brief" and isinstance(output, dict):
+                brief = output.get("research_brief", "")
+                if brief:
+                    display = f"{info['stream_prefix']}\n\n{brief}"
+                    sc["status"].markdown(display)
+                    sc["accumulated_text"].append(display)
+
+            elif ev_name == "supervisor_subgraph" and isinstance(output, dict):
+                notes: List[str] = output.get("notes", [])
+                if notes:
+                    sc["status"].write(f"Collected {len(notes)} research note(s).")
+
+            elif ev_name == "final_report_generation" and isinstance(output, dict):
+                final_state = output
+
+            keep_expanded = ev_name == "final_report_generation"
+            sc["status"].update(
+                label=f"✅ {info['icon']} {info['label']}",
+                state="complete",
+                expanded=keep_expanded,
+            )
+
