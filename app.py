@@ -522,3 +522,109 @@ def run_research(user_input: str) -> None:
                 expanded=keep_expanded,
             )
 
+        # ── Top-level LangGraph end → capture full output state ───────────────
+        elif ev_type == "on_chain_end" and ev_name == "LangGraph":
+            output = event.get("data", {}).get("output", {})
+            if isinstance(output, dict) and not final_state:
+                final_state = output
+
+    thread.join(timeout=10)
+
+    # Collect per-stage accumulated text for persistent display
+    stages = []
+    for stage_name in STAGE_CONFIG:
+        if stage_name not in stage_containers:
+            continue
+        sc = stage_containers[stage_name]
+        full_text = "".join(sc.get("accumulated_text", []))
+        if full_text:
+            info = STAGE_CONFIG[stage_name]
+            stages.append({"label": info["label"], "icon": info["icon"], "text": full_text})
+
+    # Determine and render assistant response
+    assistant_msg: str = ""
+
+    report = final_state.get("final_report", "")
+    if report:
+        assistant_msg = report
+        st.session_state.awaiting_clarification = False
+
+    if not assistant_msg:
+        msgs = final_state.get("messages", [])
+        if msgs:
+            last = msgs[-1]
+            content = _extract_text(getattr(last, "content", ""))
+            if content:
+                assistant_msg = content
+                st.session_state.awaiting_clarification = not bool(
+                    final_state.get("final_report")
+                )
+
+    if assistant_msg:
+        is_final_report = bool(final_state.get("final_report"))
+        if not is_final_report:
+            with st.chat_message("assistant"):
+                render_content(assistant_msg)
+        st.session_state.chat_history.append(
+            {"role": "assistant", "content": assistant_msg, "stages": stages}
+        )
+        st.session_state.lc_messages.append(AIMessage(content=assistant_msg))
+
+
+# ─── Header ───────────────────────────────────────────────────────────────────
+
+st.title("🔬 Deep Research Agent")
+st.caption(
+    "Multi-agent pipeline: **Clarification** → **Brief** → "
+    "**Supervisor** → **Research** → **Report**"
+)
+
+# ─── Tabs ─────────────────────────────────────────────────────────────────────
+
+tab_research, tab_graph = st.tabs(["💬 Research", "🗺️ Pipeline Graph"])
+
+# ─── Pipeline Graph Tab ───────────────────────────────────────────────────────
+
+with tab_graph:
+    st.subheader("Pipeline Graph")
+    st.caption(
+        "Live view of every node and edge in the compiled LangGraph. "
+        "Toggle **Expand subgraphs** to drill into the supervisor and researcher subgraphs."
+    )
+
+    xray = st.toggle("Expand subgraphs (xray)", value=True)
+
+    try:
+        mermaid_src: str = agent.get_graph(xray=xray).draw_mermaid()
+
+        mermaid_html = f"""<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    body  {{ background: transparent; margin: 0; padding: 8px; }}
+    .mermaid {{ font-family: sans-serif; }}
+  </style>
+</head>
+<body>
+  <div class="mermaid">
+{mermaid_src}
+  </div>
+  <script>
+    mermaid.initialize({{
+      startOnLoad: true,
+      theme: "default",
+      flowchart: {{ curve: "basis", useMaxWidth: true }},
+    }});
+  </script>
+</body>
+</html>"""
+
+        st.components.v1.html(mermaid_html, height=620, scrolling=True)
+
+        with st.expander("📄 Raw Mermaid source"):
+            st.code(mermaid_src, language="text")
+
+    except Exception as exc:
+        st.error(f"Could not render graph: {exc}")
+
