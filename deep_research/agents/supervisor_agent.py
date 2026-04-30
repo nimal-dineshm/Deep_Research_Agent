@@ -98,3 +98,55 @@ async def supervisor(state: SupervisorState, config: RunnableConfig) -> Command[
     iterations = cfg.get("max_researcher_iterations", max_researcher_iterations)
 
     supervisor_model = init_chat_model(model_name, temperature=0.7)
+    supervisor_model_with_tools = supervisor_model.bind_tools(_SUPERVISOR_TOOLS)
+
+    system_message = lead_researcher_prompt.format(
+        date=get_today_str(),
+        max_concurrent_research_units=concurrent,
+        max_researcher_iterations=iterations
+    )
+    messages = [SystemMessage(content=system_message)] + supervisor_messages
+
+    response = await supervisor_model_with_tools.ainvoke(messages)
+
+    return Command(
+        goto="supervisor_tools",
+        update={
+            "supervisor_messages": [response],
+            "research_iterations": state.get("research_iterations", 0) + 1
+        }
+    )
+
+async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Command[Literal["supervisor", "__end__"]]:
+    """Execute supervisor decisions - either conduct research or end the process.
+
+    Handles:
+    - Executing think_tool calls for strategic reflection
+    - Launching parallel research agents for different topics
+    - Aggregating research results
+    - Determining when research is complete
+
+    Args:
+        state: Current supervisor state with messages and iteration count
+
+    Returns:
+        Command to continue supervision, end process, or handle errors
+    """
+    supervisor_messages = state.get("supervisor_messages", [])
+    research_iterations = state.get("research_iterations", 0)
+    most_recent_message = supervisor_messages[-1]
+
+    cfg = config.get("configurable", {})
+    iterations_limit = cfg.get("max_researcher_iterations", max_researcher_iterations)
+
+    tool_messages = []
+    all_raw_notes = []
+    next_step = "supervisor"
+    should_end = False
+
+    exceeded_iterations = research_iterations >= iterations_limit
+    no_tool_calls = not most_recent_message.tool_calls
+    research_complete = any(
+        tool_call["name"] == "ResearchComplete" 
+        for tool_call in most_recent_message.tool_calls
+    )
