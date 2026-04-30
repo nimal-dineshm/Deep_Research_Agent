@@ -150,3 +150,22 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
         tool_call["name"] == "ResearchComplete" 
         for tool_call in most_recent_message.tool_calls
     )
+
+    if exceeded_iterations or no_tool_calls or research_complete:
+        should_end = True
+        next_step = END
+
+    else:
+        # Execute ALL tool calls before deciding next step
+        try:
+            # Separate think_tool calls from ConductResearch calls
+            think_tool_calls = [
+                tool_call for tool_call in most_recent_message.tool_calls 
+                if tool_call["name"] == "think_tool"
+            ]
+
+            conduct_research_calls = [
+                tool_call for tool_call in most_recent_message.tool_calls 
+                if tool_call["name"] == "ConductResearch"
+            ]
+
