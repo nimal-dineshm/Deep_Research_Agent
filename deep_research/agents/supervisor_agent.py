@@ -198,3 +198,55 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
 
                 # Wait for all research to complete
                 tool_results = await asyncio.gather(*coros)
+
+                # Format research results as tool messages
+                # Each sub-agent returns compressed research findings in result["compressed_research"]
+                # We write this compressed research as the content of a ToolMessage, which allows
+                # the supervisor to later retrieve these findings via get_notes_from_tool_calls()
+                research_tool_messages = [
+                    ToolMessage(
+                        content=result.get("compressed_research", "Error synthesizing research report"),
+                        name=tool_call["name"],
+                        tool_call_id=tool_call["id"]
+                    ) for result, tool_call in zip(tool_results, conduct_research_calls)
+                ]
+
+                tool_messages.extend(research_tool_messages)
+
+                # Aggregate raw notes from all research
+                all_raw_notes = [
+                    "\n".join(result.get("raw_notes", [])) 
+                    for result in tool_results
+                ]
+
+        except Exception as e:
+            print(f"Error in supervisor tools: {e}")
+            should_end = True
+            next_step = END
+
+    # Single return point with appropriate state updates
+    if should_end:
+        return Command(
+            goto=next_step,
+            update={
+                "notes": get_notes_from_tool_calls(supervisor_messages),
+                "research_brief": state.get("research_brief", "")
+            }
+        )
+    else:
+        return Command(
+            goto=next_step,
+            update={
+                "supervisor_messages": tool_messages,
+                "raw_notes": all_raw_notes
+            }
+        )
+
+# ===== GRAPH CONSTRUCTION =====
+
+# Build supervisor graph
+supervisor_builder = StateGraph(SupervisorState)
+supervisor_builder.add_node("supervisor", supervisor)
+supervisor_builder.add_node("supervisor_tools", supervisor_tools)
+supervisor_builder.add_edge(START, "supervisor")
+supervisor_agent = supervisor_builder.compile()
