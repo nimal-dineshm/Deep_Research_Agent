@@ -169,3 +169,32 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
                 if tool_call["name"] == "ConductResearch"
             ]
 
+            # Handle think_tool calls (synchronous)
+            for tool_call in think_tool_calls:
+                observation = think_tool.invoke(tool_call["args"])
+                tool_messages.append(
+                    ToolMessage(
+                        content=observation,
+                        name=tool_call["name"],
+                        tool_call_id=tool_call["id"]
+                    )
+                )
+
+            # Handle ConductResearch calls (asynchronous)
+            if conduct_research_calls:
+                # Launch parallel research agents, propagating config for model/tool-call settings
+                coros = [
+                    researcher_agent.ainvoke(
+                        {
+                            "researcher_messages": [
+                                HumanMessage(content=tool_call["args"]["research_topic"])
+                            ],
+                            "research_topic": tool_call["args"]["research_topic"],
+                        },
+                        config=config,
+                    )
+                    for tool_call in conduct_research_calls
+                ]
+
+                # Wait for all research to complete
+                tool_results = await asyncio.gather(*coros)
