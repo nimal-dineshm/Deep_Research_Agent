@@ -48,4 +48,16 @@ def format_messages(messages):
             console.print(Panel(content, title="🤖 Assistant", border_style="green"))
         elif msg_type == 'Tool':
             console.print(Panel(content, title="🔧 Tool Output", border_style="yellow"))
-    
+        else:
+            console.print(Panel(content, title=f"📝 {msg_type}", border_style="white"))
+
+
+def format_message(messages):
+    """Alias for format_messages for backward compatibility"""
+    return format_messages(messages)
+
+
+def show_prompt(prompt_text: str, title: str = "Prompt", border_style: str = "blue"):
+    """
+    Display a prompt with rich formatting and XML tag highlighting.
+"""
