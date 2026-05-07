@@ -20,4 +20,32 @@ def format_message_content(message):
                 parts.append(item['text'])
             elif item.get('type') == 'tool_use':
                 parts.append(f"\n🔧 Tool Call: {item['name']}")
- 
+                parts.append(f"   Args: {json.dumps(item['input'], indent=2)}")
+                parts.append(f"   ID: {item.get('id', 'N/A')}")
+                tool_calls_processed = True
+    else:
+        parts.append(str(message.content))
+    
+    # Handle tool calls attached to the message (OpenAI format) - only if not already processed
+    if not tool_calls_processed and hasattr(message, 'tool_calls') and message.tool_calls:
+        for tool_call in message.tool_calls:
+            parts.append(f"\n🔧 Tool Call: {tool_call['name']}")
+            parts.append(f"   Args: {json.dumps(tool_call['args'], indent=2)}")
+            parts.append(f"   ID: {tool_call['id']}")
+    
+    return "\n".join(parts)
+
+
+def format_messages(messages):
+    """Format and display a list of messages with Rich formatting"""
+    for m in messages:
+        msg_type = m.__class__.__name__.replace('Message', '')
+        content = format_message_content(m)
+
+        if msg_type == 'Human':
+            console.print(Panel(content, title="🧑 Human", border_style="blue"))
+        elif msg_type == 'Ai':
+            console.print(Panel(content, title="🤖 Assistant", border_style="green"))
+        elif msg_type == 'Tool':
+            console.print(Panel(content, title="🔧 Tool Output", border_style="yellow"))
+    
