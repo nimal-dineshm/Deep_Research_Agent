@@ -1,7 +1,26 @@
 [project]
-name = "deep-research-agent"
+name = "deep-research-implementation"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    # LLM providers
+    "anthropic>=0.40.0",
+    "openai>=2.30.0",
+    # LangChain / LangGraph
+    "langchain>=0.3.0",
+    "langchain-core>=0.3.0",
+    "langchain-openai>=0.3.0",
+    "langchain-anthropic>=0.3.0",
+    "langchain-google-genai>=2.0.0",
+    "langchain-groq>=0.2.0",
+    "langgraph>=0.3.0",
+    # Search
+    "tavily-python>=0.5.0",
+    # Utilities
+    "pydantic>=2.11.0",
+    "python-dotenv>=1.0.0",
+    # UI
+    "streamlit>=1.40.0",
+]
