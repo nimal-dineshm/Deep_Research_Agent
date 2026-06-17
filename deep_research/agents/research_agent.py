@@ -19,9 +19,10 @@ from deep_research.prompt import research_system_prompt, compress_research_syste
 
 # ===== CONFIGURATION =====
 
-_DEFAULT_RESEARCH_MODEL = "anthropic:claude-haiku-4-5-20251001"
-_DEFAULT_COMPRESSION_MODEL = "anthropic:claude-haiku-4-5-20251001"
-
+# _DEFAULT_RESEARCH_MODEL = "anthropic:claude-haiku-4-5-20251001"
+# _DEFAULT_COMPRESSION_MODEL = "anthropic:claude-haiku-4-5-20251001"
+_DEFAULT_RESEARCH_MODEL = "google_genai:gemini-2.5-flash"
+_DEFAULT_COMPRESSION_MODEL = "google_genai:gemini-2.5-flash"
 tools = [tavily_search, think_tool]
 tools_by_name = {tool.name: tool for tool in tools}
 
