@@ -68,7 +68,8 @@ except ImportError:
 
 # ===== CONFIGURATION =====
 
-_DEFAULT_RESEARCH_MODEL = "anthropic:claude-haiku-4-5-20251001"
+# _DEFAULT_RESEARCH_MODEL = "anthropic:claude-haiku-4-5-20251001"
+_DEFAULT_RESEARCH_MODEL = "google_genai:gemini-2.5-flash"
 _SUPERVISOR_TOOLS = [ConductResearch, ResearchComplete, think_tool]
 
 max_researcher_iterations = 6
