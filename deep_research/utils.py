@@ -8,7 +8,8 @@ from langchain_core.runnables import RunnableConfig
 from deep_research.state import Summary
 from deep_research.prompt import summarize_webpage_prompt
 
-_DEFAULT_SUMMARIZATION_MODEL = "anthropic:claude-haiku-4-5-20251001"
+# _DEFAULT_SUMMARIZATION_MODEL = "anthropic:claude-haiku-4-5-20251001"
+_DEFAULT_SUMMARIZATION_MODEL = "google_genai:gemini-2.5-flash"
 
 def get_today_str() -> str:
     """Get current date formatted for display in prompts and outputs.
