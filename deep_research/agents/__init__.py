@@ -22,7 +22,8 @@ from deep_research.state import AgentState, AgentInputState
 from deep_research.agents.scoping_agent import clarify_with_user, write_research_brief
 from deep_research.agents.supervisor_agent import supervisor_agent
 
-_DEFAULT_FINAL_REPORT_MODEL = "anthropic:claude-haiku-4-5-20251001"
+# _DEFAULT_FINAL_REPORT_MODEL = "anthropic:claude-haiku-4-5-20251001"
+_DEFAULT_FINAL_REPORT_MODEL = "google_genai:gemini-2.5-flash"
 
 async def final_report_generation(state: AgentState, config: RunnableConfig):
     """
