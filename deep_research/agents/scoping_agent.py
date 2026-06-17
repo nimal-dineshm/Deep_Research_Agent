@@ -21,13 +21,13 @@ from langgraph.types import Command
 from deep_research.prompt import clarify_with_user_instructions, transform_messages_into_research_topic_prompt
 from deep_research.state import AgentState, ClarifyWithUser, ResearchQuestion, AgentInputState
 
-_DEFAULT_RESEARCH_MODEL = "anthropic:claude-haiku-4-5-20251001"
+_DEFAULT_RESEARCH_MODEL = "google_genai:gemini-2.5-flash"
 
 # ===== UTILITY FUNCTIONS =====
 
 def get_today_str() -> str:
     """Get current date in a human-readable format."""
-    return datetime.now().strftime("%a %b %-d, %Y")
+    return datetime.now().strftime("%a %b %d, %Y")
 
 # ===== WORKFLOW NODES =====
 
